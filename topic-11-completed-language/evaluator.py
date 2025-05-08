@@ -315,6 +315,22 @@ def evaluate(ast, environment):
                 return condition_value, exit_status
         return None, False
 
+    if ast["tag"] == "for":
+        assignment, exit_status = evaluate(ast["assignment"], environment)
+        
+        condition_value, exit_status = evaluate(ast["condition"], environment)
+        if exit_status:
+            return condition_value, exit_status
+        while condition_value:
+            value, exit_status = evaluate(ast["do"], environment)
+            if exit_status:
+                return value, exit_status
+            repeat, exit_status = evaluate(ast["repeat_expression"], environment)
+            condition_value, exit_status = evaluate(ast["condition"], environment)
+            if exit_status:
+                return condition_value, exit_status
+        return None, False
+
     if ast["tag"] == "statement_list":
         for statement in ast["statements"]:
             value, exit_status = evaluate(statement, environment)
@@ -503,6 +519,12 @@ def test_evaluate_while_statement():
     print("testing evaluate_while_statement")
     equals("while(0) {x=1}", {}, None, {})
     equals("x=1; while(x<5) {x=x+1}; y=3", {}, 3, {"x": 5, "y": 3})
+
+
+def test_evaluate_for_statement():
+    print("testing evaluate_for_statement")
+    equals("for(y=1,0,y=y+1) {x=1}", {}, None, {"y": 1})
+    equals("for(y=0,y<5,y=y+1) {print 5}", {}, None, {"y": 5})
 
 
 def test_evaluate_assignment_statement():
@@ -750,6 +772,7 @@ if __name__ == "__main__":
     test_evaluate_print_statement()
     test_evaluate_if_statement()
     test_evaluate_while_statement()
+    test_evaluate_for_statement()
     test_evaluate_assignment_statement()
     test_evaluate_function_literal()
     test_evaluate_function_call()

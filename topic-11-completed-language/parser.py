@@ -37,6 +37,7 @@ grammar = """
 
     if_statement = "if" "(" expression ")" statement_list [ "else" (if_statement | statement_list) ]
     while_statement = "while" "(" expression ")" statement_list
+    for_statement = "for" "(" assignment_expression "," expression "," assignment_expression ")" statement_list
     statement_list = "{" statement { ";" statement } "}"
     exit_statement = "exit" [ expression ]
     assert_statement = "assert" expression [ "," expression ]
@@ -1027,6 +1028,39 @@ def test_parse_while_statement():
         },
     }
 
+def parse_for_statement(tokens):
+    """
+    for_statement = "for" "(" assignment_expression "," expression "," assignment_expression ")" statement_list
+    """
+    assert tokens[0]["tag"] == "for"
+    tokens = tokens[1:]
+    if tokens[0]["tag"] != "(":
+        raise Exception(f"Expected '(': {tokens[0]}")
+    assignment, tokens = parse_assignment_expression(tokens[1:])
+    if tokens[0]["tag"] != ",":
+        raise Exception(f"Expected ',': {tokens[0]}")
+    condition, tokens = parse_expression(tokens[1:])
+    if tokens[0]["tag"] != ",":
+        raise Exception(f"Expected ',': {tokens[0]}")
+    repeat_expression, tokens = parse_assignment_expression(tokens[1:])
+    if tokens[0]["tag"] != ")":
+        raise Exception(f"Expected ')': {tokens[0]}")
+    do_statements, tokens = parse_statement_list(tokens[1:])
+    return {"tag": "for", "assignment": assignment, "condition": condition, "repeat_expression": repeat_expression, "do": do_statements}, tokens
+
+def test_parse_for_statement():
+    """
+    for_statement = "for" "(" assignment_expression "," expression "," assignment_expression ")" statement_list
+    """
+    print("testing parse_for_statement...")
+    ast = parse_for_statement(tokenize("for(i=1,i<9,i=i+1){print 1}"))[0]
+    assert ast=={'tag': 'for', 
+    'assignment': {'tag': 'assign', 'target': {'tag': 'identifier', 'value': 'i'}, 'value': {'tag': 'number', 'value': 1}}, 
+    'condition': {'tag': '<', 'left': {'tag': 'identifier', 'value': 'i'}, 'right': {'tag': 'number', 'value': 9}}, 
+    'repeat_expression': {'tag': 'assign', 'target': {'tag': 'identifier', 'value': 'i'}, 'value': {'tag': '+', 'left': {'tag': 'identifier', 'value': 'i'}, 'right': {'tag': 'number', 'value': 1}}}, 
+    'do': {'tag': 'statement_list', 'statements': [{'tag': 'print', 'value': {'tag': 'number', 'value': 1}}]}}
+    
+
 
 def parse_return_statement(tokens):
     """
@@ -1228,6 +1262,8 @@ def parse_statement(tokens):
         return parse_if_statement(tokens)
     if tag == "while":
         return parse_while_statement(tokens)
+    if tag == "for":
+        return parse_for_statement(tokens)
     if tag == "function":
         return parse_function_statement(tokens)
     if tag == "return":
@@ -1413,6 +1449,7 @@ if __name__ == "__main__":
         test_parse_assert_statement,
         test_parse_statement,
         test_parse_program,
+        test_parse_for_statement,
     ]
 
     test_grammar = grammar
